@@ -8,25 +8,22 @@ from bot.db import Q
 
 class TestQ(unittest.TestCase):
     def setUp(self):
-        # Создаем временную базу данных
         self.temp_dir = TemporaryDirectory()
         self.db_path = Path(self.temp_dir.name) / "test.db"
         self.q = Q(self.db_path)
         self.q.create_tables()
 
     def tearDown(self):
-        # Удаляем временную базу данных
         self.temp_dir.cleanup()
 
-    def test_add_user_hb_and_get_users(self):
+    def test_add_user_hb_and_get_user(self):
         username = "test_user"
         birthday = datetime(1990, 1, 1)
         self.q.add_user_hb(username, birthday)
 
-        users = self.q.get_users()
-        self.assertEqual(len(users), 1)
-        self.assertEqual(users[0][0], username)
-        self.assertEqual(users[0][1], birthday.strftime("%Y-%m-%d %H:%M:%S"))
+        birthday_and_days = self.q.get_user_hb(username)
+        self.assertEqual(len(birthday_and_days), 2)
+        self.assertEqual(birthday_and_days[0], birthday.strftime("%d.%b"))
 
     def test_check_user_happy_birthday_is_exists(self):
         username = "test_user"
@@ -47,9 +44,9 @@ class TestQ(unittest.TestCase):
         self.q.add_user_hb(username, old_birthday)
         self.q.update_user_hb(username, new_birthday)
 
-        users = self.q.get_users()
-        self.assertEqual(len(users), 1)
-        self.assertEqual(users[0][1], new_birthday.strftime("%Y-%m-%d %H:%M:%S"))
+        users = self.q.get_user_hb(username)
+        self.assertEqual(len(users), 2)
+        self.assertEqual(users[0], new_birthday.strftime("%d.%b"))
 
     def test_add_user_hb_duplicate(self):
         username = "test_user"
