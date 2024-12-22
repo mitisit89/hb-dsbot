@@ -3,7 +3,7 @@ import os
 
 import discord
 from dotenv import load_dotenv
-
+from discord import app_commands
 from bot.db import Q
 from bot.utils import validate_date
 
@@ -11,41 +11,51 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
+
+
+@tree.command(
+    name="add",
+    description="Add your happy birthday",
+)
+async def add_happy_birthday(interaction: discord.Interaction, date: str):
+    if Q("bot.db").check_user_happy_birthday_is_exists(interaction.user.name):
+        await interaction.response.send_message("Your happy birthday is added to update use !rewrite")
+    elif validate_date(date):
+        Q("bot.db").add_user_hb(interaction.user.name, datetime.strptime(date, "%d.%m.%y"))
+        await interaction.response.send_message("Your happy birthday is added")
+    else:
+        await interaction.response.send_message("date format in not correct use dd.mm.yy")
+
+
+@tree.command(
+    name="get",
+    description="Get your happy birthday",
+)
+async def get_happy_birthday(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "Your happy birthday in %s. %s left until your happy birthday" % Q("bot.db").get_user_hb(interaction.user.name)
+    )
+
+
+@tree.command(
+    name="rewrite",
+    description="Rewrite your happy birthday",
+)
+async def rewrite_happy_birthday(interaction: discord.Interaction, date: str):
+    if not validate_date(date):
+        await interaction.response.send_message("date format in not correct use dd.mm.yy")
+        return
+    else:
+        Q("bot.db").update_user_hb(interaction.user.name, datetime.strptime(date, "%d.%m.%y"))
+        await interaction.response.send_message("Your happy birthday is updated")
 
 
 @client.event
 async def on_ready():
     Q("bot.db").create_tables()
+    await tree.sync()
     print(f"We have logged in as {client.user}")
-
-
-@client.event
-async def on_message(message: discord.Message) -> None:
-    if message.author == client.user:
-        return
-
-    if message.content.startswith("!hb"):
-        if Q("bot.db").check_user_happy_birthday_is_exists(message.author.name):
-            await message.channel.send("Your happy birthday is added to update use !rewrite")
-        elif validate_date(message.content.split()[1]):
-            Q("bot.db").add_user_hb(message.author.name, datetime.strptime(message.content.split()[1], "%d.%m.%y"))
-            await message.channel.send("Your happy birthday is added")
-        else:
-            await message.channel.send("date format in not correct use dd.mm.yy")
-    if message.content.startswith("!get-hb"):
-        await message.channel.send(
-            "Your happy birthday in %s. %s left until your happy birthday"
-            % Q("bot.db").get_user_hb(message.author.name)
-        )
-    if message.content.startswith("!rewrite"):
-        Q("bot.db").update_user_hb(message.author.name, datetime.strptime(message.content.split()[1], "%d.%m.%y"))
-        await message.channel.send("Your happy birthday is updated")
-    if message.content.startswith("!help"):
-        await message.channel.send(
-            "To add your happy birthday use !hb \n"
-            "To get your happy birthday use !get-hb\n"
-            "To update your happy birthday use !rewrite dd.mm.yy\n"
-        )
 
 
 if __name__ == "__main__":
